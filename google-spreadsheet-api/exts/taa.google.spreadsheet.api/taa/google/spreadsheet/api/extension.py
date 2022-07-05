@@ -9,34 +9,46 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pxr import Gf
 
-
 class MyExtension(omni.ext.IExt):
 
     data = {'translate_x': 0, 'translate_y': 0, 'translate_z': 0, 'scale_x': 0, 'rotate_y': 0, 'rotate_z': 0, 'scale_x': 0, 'scale_y': 0, 'scale_z': 0}
     subscription = None
     stage = None
-    google_sheet = None    
-    startButton = None
-    stopButton = None
+    google_sheet = None
 
-    # lifecycle 
+    # lifecycle
 
 
     def on_startup(self, ext_id):
-        
+
         print("[taa.google.spreadsheet.api] Extension starting up")
 
         self.stage = omni.usd.get_context().get_stage()
-         
-        self._window = ui.Window("TAA", width=300, height=300)
-        
+
+        self._window = ui.Window("TAA", width=400, height=270)
+
         with self._window.frame:
 
             with ui.VStack():
-        
-                self.startButton = ui.Button("Start", clicked_fn=lambda: self.start())
 
-                self.stopButton = ui.Button("Stop", clicked_fn=lambda: self.stop())
+                ui.Label('Spreadsheet ID', height=20)
+                self.spreadsheet_id_field = ui.StringField(height=20)
+
+                ui.Label('Range', height=20)
+                self.range_field = ui.StringField(height=20)
+
+                ui.Label('API Key', height=20)
+                self.api_key_field = ui.StringField(height=20)
+
+                ui.Spacer(height= 12)
+
+                self.startButton = ui.Button("Start", height=54, clicked_fn=lambda: self.start(), style={"background_color": "green"})
+
+                self.stopButton = ui.Button("Stop", height=54, clicked_fn=lambda: self.stop(), style={"color": "red"})
+
+                ui.Spacer(height= 12)
+
+                self.statusLabel = ui.Label('Click start to begin', height=14, style={"font_size": 12})
 
 
         self.stopButton.visible = False
@@ -46,10 +58,10 @@ class MyExtension(omni.ext.IExt):
 
     def on_shutdown(self):
 
-        print("Extension shuting down")
-        
+        print("Extension shutting down")
+
         self.stop()
-        
+
         print("Extension shutdown complete")
 
 
@@ -58,27 +70,27 @@ class MyExtension(omni.ext.IExt):
 
     def apply_changes(self, frame):
         try:
-            
+
             # load the data from Google Spreadsheet ever few seconds; this API is rate limited
-            # todo: this should not be attached to the frame - if the frame rate drops, the data can get stale
 
             frameNumber = int(frame.payload["SWHFrameNumber"])
 
             if(frameNumber % 180 != 0): return
 
             print('applying changes')
-            
+
             self.read_data()
 
             # act on all selected prims
 
             paths = self.list_paths_of_selected_prims()
 
-            for path in paths: 
-                
+            for path in paths:
+
                 # get reference to the prim on stage, making sure that it's valid
-                
-                prim = self.stage.GetPrimAtPath(path)            
+
+                prim = self.stage.GetPrimAtPath(path)
+
                 if prim.IsValid() == False: continue
 
                 # transform the prim based on the settings in the Google Spreadsheet
@@ -89,6 +101,22 @@ class MyExtension(omni.ext.IExt):
 
                 self.scale_prim(prim)
 
+            print('changes applied successfully')
+
+        except Exception as err:
+
+            print(err)
+
+
+    def read_config(self):
+        try:
+
+            spreadsheetId = self.spreadsheet_id_field.model.get_value_as_string()
+            range = self.range_field.model.get_value_as_string()
+            api_key = self.api_key_field.model.get_value_as_string()
+
+            return (spreadsheetId, range, api_key)
+
         except Exception as err:
 
             print(err)
@@ -97,24 +125,20 @@ class MyExtension(omni.ext.IExt):
     def read_data(self):
         try:
 
-            print('reading data')
+            spreadsheetId, range, api_key = self.read_config()
 
-            SPREADSHEET_ID = '1BjCp195PXKnVaFCbN2kVqFq_Z3vh6DjQqxMD2iPd5Ro'
-            RANGE = 'A1:B30'
-            API_KEY = 'AIzaSyBeDpyPNlHuKfexv_XMpLJNEDJrKj9KEmE'
+            if self.google_sheet == None:
 
-            if self.google_sheet == None: 
-                
-                service = build('sheets', 'v4', developerKey=API_KEY)
+                service = build('sheets', 'v4', developerKey=api_key)
 
                 self.google_sheet = service.spreadsheets()
 
-            result = self.google_sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE).execute()
+            result = self.google_sheet.values().get(spreadsheetId=spreadsheetId, range=range).execute()
 
             values = result.get('values', [])
 
             data = toJSON(values)
-            
+
             # normalize and clean data
 
             self.data["shape"] = data.setdefault('shape', 'Cube')
@@ -146,7 +170,7 @@ class MyExtension(omni.ext.IExt):
                 path=prim.GetPath(),
                 new_translation=Gf.Vec3d(x, y, z),
             )
-    
+
         except Exception as err:
 
             print("Failed to move prim", err)
@@ -154,7 +178,7 @@ class MyExtension(omni.ext.IExt):
 
     def rotate_prim(self, prim):
         try:
-        
+
             x = self.data.get('rotate_x')
             y = self.data.get('rotate_y')
             z = self.data.get('rotate_z')
@@ -171,6 +195,7 @@ class MyExtension(omni.ext.IExt):
 
     def scale_prim(self, prim):
         try:
+
             x = self.data.get('scale_x')
             y = self.data.get('scale_y')
             z = self.data.get('scale_z')
@@ -187,6 +212,7 @@ class MyExtension(omni.ext.IExt):
 
     def list_paths_of_selected_prims(self):
         try:
+
             selection = omni.usd.get_context().get_selection()
 
             paths = selection.get_selected_prim_paths()
@@ -200,17 +226,17 @@ class MyExtension(omni.ext.IExt):
 
     def start(self):
 
-        print('start watching for changes')
-
         self.read_data()
 
         def on_update_apply(frame): self.apply_changes(frame)
 
         self.subscription = omni.kit.app.get_app().get_update_event_stream().create_subscription_to_pop(on_update_apply)
-        
 
         self.startButton.visible = False
+
         self.stopButton.visible = True
+
+        self.statusLabel.text = "Status: started"
 
 
     def stop(self):
@@ -218,10 +244,10 @@ class MyExtension(omni.ext.IExt):
         if self.subscription: del self.subscription
 
         self.startButton.visible = True
+
         self.stopButton.visible = False
 
-        print('stopped watching for changes')
-
+        self.statusLabel.text = "Status: stopped"
 
 
 
@@ -230,7 +256,7 @@ Utility functions
 """
 
 def toJSON(values):
-    
+
     json = {}
 
     if not values:
