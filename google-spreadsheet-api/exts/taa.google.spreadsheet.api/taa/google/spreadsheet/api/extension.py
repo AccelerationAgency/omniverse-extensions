@@ -77,20 +77,6 @@ class MyExtension(omni.ext.IExt):
 
         self.stopButton.visible = False
 
-        #
-        # TODO: REMOVE DEFAULT VALUES BEFORE MAKING PUBLIC
-        #
-
-        SPREADSHEET_ID = '1BjCp195PXKnVaFCbN2kVqFq_Z3vh6DjQqxMD2iPd5Ro'
-        RANGE = 'A1:B30'
-        API_KEY = 'AIzaSyBeDpyPNlHuKfexv_XMpLJNEDJrKj9KEmE'
-
-        self.spreadsheet_id_field.model.set_value(SPREADSHEET_ID)
-        self.range_field.model.set_value(RANGE)
-        self.api_key_field.model.set_value(API_KEY)
-
-        ##################################################################
-
         print("[taa.google.spreadsheet.api] Extension start up complete")
 
     def on_shutdown(self):
