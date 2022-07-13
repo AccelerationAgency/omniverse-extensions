@@ -1,13 +1,17 @@
 import omni.ext
 import omni.ui as ui
 import omni.kit.commands
+from typing import List
+from pxr import Gf
 
 omni.kit.pipapi.install('google-api-python-client')
 omni.kit.pipapi.install('google-auth-httplib2')
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from pxr import Gf
+
+SPACING = 4
+LABEL_WIDTH = 120
 
 class MyExtension(omni.ext.IExt):
 
@@ -15,9 +19,11 @@ class MyExtension(omni.ext.IExt):
     subscription = None
     stage = None
     google_sheet = None  
+    label_width = 50
 
+    _source_prim_model = ui.SimpleStringModel()
+    
     # lifecycle 
-
 
     def on_startup(self, ext_id):
         
@@ -29,16 +35,34 @@ class MyExtension(omni.ext.IExt):
                 
         with self._window.frame:
 
-            with ui.VStack():
-        
-                ui.Label('Spreadsheet ID', height=20)
-                self.spreadsheet_id_field = ui.StringField(height=20)
+            with ui.VStack(height=0, spacing=SPACING):
 
-                ui.Label('Range', height=20)
-                self.range_field = ui.StringField(height=20)
+                with ui.CollapsableFrame("Source", name="group"):
+                    
+                    with ui.VStack(height=0, spacing=SPACING):
+                    
+                        with ui.HStack():
+                            
+                            ui.Label("Prim", name="attribute_name", width=LABEL_WIDTH)
+                            
+                            ui.StringField(model=self._source_prim_model)
+                            
+                            ui.Button(" S ", width=0, height=0, style={"margin": 0}, clicked_fn=self._on_get_selection, tooltip="Get From Selection")
 
-                ui.Label('API Key', height=20)
-                self.api_key_field = ui.StringField(height=20)
+                ui.Spacer(height= 12)
+
+                with ui.CollapsableFrame("Settings", name="group"):                        
+                
+                    with ui.VStack(height=0, spacing=SPACING):
+                            
+                        ui.Label('Spreadsheet ID', height=20)
+                        self.spreadsheet_id_field = ui.StringField(height=20)
+
+                        ui.Label('Range', height=20)
+                        self.range_field = ui.StringField(height=20)
+
+                        ui.Label('API Key', height=20)
+                        self.api_key_field = ui.StringField(height=20)
 
                 ui.Spacer(height= 12)
 
@@ -53,8 +77,21 @@ class MyExtension(omni.ext.IExt):
 
         self.stopButton.visible = False
 
-        print("[taa.google.spreadsheet.api] Extension start up complete")
+        #
+        # TODO: REMOVE DEFAULT VALUES BEFORE MAKING PUBLIC
+        #
 
+        SPREADSHEET_ID = '1BjCp195PXKnVaFCbN2kVqFq_Z3vh6DjQqxMD2iPd5Ro'
+        RANGE = 'A1:B30'
+        API_KEY = 'AIzaSyBeDpyPNlHuKfexv_XMpLJNEDJrKj9KEmE'
+
+        self.spreadsheet_id_field.model.set_value(SPREADSHEET_ID)
+        self.range_field.model.set_value(RANGE)
+        self.api_key_field.model.set_value(API_KEY)
+
+        ##################################################################
+
+        print("[taa.google.spreadsheet.api] Extension start up complete")
 
     def on_shutdown(self):
 
@@ -67,7 +104,18 @@ class MyExtension(omni.ext.IExt):
 
     # custom methods
 
+    def _on_get_selection(self):
+        
+        print('_on_get_selection', self.get_selection())
+        
+        self._source_prim_model.as_string = ", ".join(self.get_selection())
 
+
+    def get_selection(self) -> List[str]:
+
+        return omni.usd.get_context().get_selection().get_selected_prim_paths()
+        
+        
     def apply_changes(self, frame):
         try:
             
@@ -212,10 +260,14 @@ class MyExtension(omni.ext.IExt):
 
     def list_paths_of_selected_prims(self):
         try:
+            
+            paths = [i.strip() for i in self._source_prim_model.as_string.split(",")]
+            
+            if not paths:
+                paths = self.get_selection()
 
-            selection = omni.usd.get_context().get_selection()
-
-            paths = selection.get_selected_prim_paths()
+            if not paths:
+                pass
 
             return paths
 
