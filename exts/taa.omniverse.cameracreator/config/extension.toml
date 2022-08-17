@@ -1,0 +1,16 @@
+[package]
+
+version = "1.0.0"
+title = "TAA - Omniverse Camera Creator"
+description = "An simple extension that lets you quickly create cameras with a single click."
+readme  = "docs/README.md"
+repository = ""
+category = "Other"
+keywords = ["taa", "viewport", "create", "camera", "view"]
+icon = "data/taa-logo.png"
+
+[dependencies]
+"omni.kit.uiapp" = {}
+
+[[python.module]]
+name = "taa.omniverse.cameracreator"
